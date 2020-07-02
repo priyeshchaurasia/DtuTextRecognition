@@ -12,6 +12,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
+import android.graphics.Point;
+import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -88,9 +90,10 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         flash = findViewById(R.id.flash);
         textView = findViewById(R.id.textView);
         flash.setOnClickListener(this);
-        if (captImageReader == null) {
+       /* if (captImageReader == null) {
 
             Log.d("TAGGG", "oncaptImage");
+
             captImageReader = ImageReader.newInstance(720, 1080, ImageFormat.JPEG, 1);
             captImageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
                 @Override
@@ -110,7 +113,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                     }
                 }
             }, null);
-        }
+        }*/
 
 
 
@@ -125,9 +128,12 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         Bitmap rotatedBitmap = Bitmap.createBitmap(sourceBitmap, 0, 0, sourceBitmap.getWidth(), sourceBitmap.getHeight(), m, true);
         FileOutputStream fos = null;
         File dir = File.createTempFile("Image",".jpg");
+        runTextRecognition(rotatedBitmap);
         try {
             fos = new FileOutputStream(dir);
             rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+
+
             fos.flush();
 
         } catch (FileNotFoundException e) {
@@ -147,7 +153,6 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             }
         }
 
-        runTextRecognition(rotatedBitmap);
 
 
 
@@ -160,7 +165,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 .setFormat(FirebaseVisionImageMetadata.IMAGE_FORMAT_NV21)
                 .build();
 
-        FirebaseVisionImage image = FirebaseVisionImage.fromByteArray(bytes, metadata);
+        FirebaseVisionImage image = FirebaseVisionImage.fromBitmap(rotatedBitmap);
         FirebaseVisionTextRecognizer detector = FirebaseVision.getInstance().getOnDeviceTextRecognizer();
 
         Task<FirebaseVisionText> result = detector.processImage(image)
@@ -170,6 +175,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                                 // Task completed successfully
                                 // ...
                                 textView.setText(firebaseVisionText.getText().toString());
+                                processTextRecognitionResult(firebaseVisionText);
                                 Log.d("TAGG",firebaseVisionText.getText());
 
                             }
@@ -187,6 +193,16 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
     }
 
+    private void processTextRecognitionResult(FirebaseVisionText texts) {
+        List<FirebaseVisionText.TextBlock> blocks = texts.getTextBlocks();
+        if (blocks.size() == 0) {
+            return;
+        }
+
+        }
+
+
+
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     public void onStart() {
@@ -202,11 +218,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == CAMERA_PERMISSION_CODE) {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                try {
-                    handleCamera();
-                } catch (CameraAccessException e) {
-                    e.printStackTrace();
-                }
+
 
             } else {
                 Toast.makeText(this, "You Cannot Use the App", Toast.LENGTH_SHORT).show();
@@ -218,9 +230,9 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-        setupCamera(width,height);
+
         try {
-            handleCamera();
+            handleCamera(width,height);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -250,10 +262,11 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         }
     };
 
-    private void handleCamera() throws CameraAccessException {
+    private void handleCamera(int width, int height) throws CameraAccessException {
         cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         cameraID = cameraManager.getCameraIdList()[0];
         cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraID);
+        setupCamera(width,height);
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             return;
@@ -261,48 +274,57 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         cameraManager.openCamera(cameraID, stateCallback, null);
     }
 
-    private static class CompareSizeByArea implements Comparator<Size> {
+    static class CompareSizesByArea implements Comparator<Size> {
+
         @Override
         public int compare(Size lhs, Size rhs) {
-            return Long.signum( (long)(lhs.getWidth() * lhs.getHeight()) -
-                    (long)(rhs.getWidth() * rhs.getHeight()));
+            // We cast here to ensure the multiplications won't overflow
+            return Long.signum((long) lhs.getWidth() * lhs.getHeight() -
+                    (long) rhs.getWidth() * rhs.getHeight());
         }
+
     }
+
     private int mTotalRotation;
     private void setupCamera(int width, int height) {
-        CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        try {
-            for(String cameraId : cameraManager.getCameraIdList()){
-                CameraCharacteristics cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId);
-                if(cameraCharacteristics.get(CameraCharacteristics.LENS_FACING) ==
-                        CameraCharacteristics.LENS_FACING_FRONT){
-                    continue;
-                }
-                StreamConfigurationMap map = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-                int deviceOrientation = getWindowManager().getDefaultDisplay().getRotation();
-                mTotalRotation = sensorToDeviceRotation(cameraCharacteristics, deviceOrientation);
-                boolean swapRotation = mTotalRotation == 90 || mTotalRotation == 270;
-                int rotatedWidth = width;
-                int rotatedHeight = height;
-                if(swapRotation) {
-                    rotatedWidth = height;
-                    rotatedHeight = width;
-                }
-                dimension = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class), rotatedWidth, rotatedHeight);
+
+        StreamConfigurationMap map = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+        int deviceOrientation = getWindowManager().getDefaultDisplay().getRotation();
+        mTotalRotation = sensorToDeviceRotation(cameraCharacteristics, deviceOrientation);
+        boolean swapRotation = mTotalRotation == 90 || mTotalRotation == 270;
+        int rotatedWidth = width;
+        int rotatedHeight = height;
+        Point displaySize = new Point();
+        getWindowManager().getDefaultDisplay().getSize(displaySize);
+        int maxPreviewWidth = displaySize.x;
+        int maxPreviewHeight = displaySize.y;
+        if(swapRotation) {
+            rotatedWidth = height;
+            rotatedHeight = width;
+            maxPreviewWidth = displaySize.y;
+            maxPreviewHeight = displaySize.x;
+        }
+        Size largest = Collections.max(
+                Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
+                new CompareSizesByArea());
+                captImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(),
+                ImageFormat.JPEG, /*maxImages*/2);
+                captImageReader.setOnImageAvailableListener(
+                mOnImageAvailableListener, null);
+
+        dimension = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class),
+                rotatedWidth, rotatedHeight,maxPreviewWidth,
+                maxPreviewHeight);
 //                mVideoSize = chooseOptimalSize(map.getOutputSizes(MediaRecorder.class), rotatedWidth, rotatedHeight);
 //                mImageSize = chooseOptimalSize(map.getOutputSizes(ImageFormat.JPEG), rotatedWidth, rotatedHeight);
 //                mImageReader = ImageReader.newInstance(mImageSize.getWidth(), mImageSize.getHeight(), ImageFormat.JPEG, 1);
 //                mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, mBackgroundHandler);
-                cameraID = cameraId;
-                return;
-            }
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
+
+        return;
+
     }
 
     private void cameraPreview() throws CameraAccessException {
-        textureView.setAspectRatio(16,9);
         SurfaceTexture surfaceTexture = textureView.getSurfaceTexture();
         surfaceTexture.setDefaultBufferSize(dimension.getWidth(),dimension.getHeight());
         Surface surface = new Surface(surfaceTexture);
@@ -363,6 +385,31 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
         }
     }
+    private final ImageReader.OnImageAvailableListener mOnImageAvailableListener
+            = new ImageReader.OnImageAvailableListener() {
+
+        @Override
+        public void onImageAvailable(ImageReader reader) {
+            imageReader = reader;
+            image = imageReader.acquireLatestImage();
+            ByteBuffer byteBuffer = image.getPlanes()[0].getBuffer();
+            byteBuffer.rewind();
+            bytes = new byte[byteBuffer.capacity()];
+            byteBuffer.get(bytes);
+            Bitmap sourceBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+            image.close();
+
+            try {
+                getbitmap(sourceBitmap);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+
+
+    };
+
 
     private static SparseIntArray ORIENTATIONS = new SparseIntArray();
     static {
@@ -377,20 +424,38 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         return (sensorOrienatation + deviceOrientation + 360) % 360;
     }
 
-    private static Size chooseOptimalSize(Size[] choices, int width, int height) {
-        List<Size> bigEnough = new ArrayList<Size>();
-        for(Size option : choices) {
-            if(option.getHeight() == option.getWidth() * height / width &&
-                    option.getWidth() >= width && option.getHeight() >= height) {
-                bigEnough.add(option);
+    private static Size chooseOptimalSize(Size[] choices, int textureViewWidth,
+                                          int textureViewHeight, int maxWidth, int maxHeight) {
+
+        // Collect the supported resolutions that are at least as big as the preview Surface
+        List<Size> bigEnough = new ArrayList<>();
+        // Collect the supported resolutions that are smaller than the preview Surface
+        List<Size> notBigEnough = new ArrayList<>();
+
+        for (Size option : choices) {
+            if (option.getWidth() <= maxWidth && option.getHeight() <= maxHeight &&
+                    option.getHeight() == option.getWidth() * 9/16) {
+                if (option.getWidth() >= textureViewWidth &&
+                        option.getHeight() >= textureViewHeight) {
+                    bigEnough.add(option);
+                } else {
+                    notBigEnough.add(option);
+                }
             }
         }
-        if(bigEnough.size() > 0) {
-            return Collections.min(bigEnough, new CompareSizeByArea());
+
+        // Pick the smallest of those big enough. If there is no one big enough, pick the
+        // largest of those not big enough.
+        if (bigEnough.size() > 0) {
+            return Collections.min(bigEnough, new CompareSizesByArea());
+        } else if (notBigEnough.size() > 0) {
+            return Collections.max(notBigEnough, new CompareSizesByArea());
         } else {
+            Log.e("TAG", "Couldn't find any suitable preview size");
             return choices[0];
         }
     }
+
     @Override
     public void onClick(View v) {
         switch (v.getId()){

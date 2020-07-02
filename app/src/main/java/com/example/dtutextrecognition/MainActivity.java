@@ -8,6 +8,10 @@ import androidx.core.app.ActivityCompat;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
+import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -16,7 +20,11 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.CaptureResult;
+import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.Image;
+import android.media.ImageReader;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -25,8 +33,24 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.analytics.FirebaseAnalytics;
+import com.google.firebase.ml.vision.FirebaseVision;
+import com.google.firebase.ml.vision.common.FirebaseVisionImage;
+import com.google.firebase.ml.vision.common.FirebaseVisionImageMetadata;
+import com.google.firebase.ml.vision.text.FirebaseVisionText;
+import com.google.firebase.ml.vision.text.FirebaseVisionTextRecognizer;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -35,11 +59,16 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private Button search, flash;
     CameraCharacteristics cameraCharacteristics;
     CameraDevice cameraDevice;
+    TextView textView ;
     private String cameraID;
     CameraCaptureSession cameraCaptureSession;
     Size dimension;
     CameraManager cameraManager;
+    private ImageReader captImageReader;
     SurfaceTexture texture;
+    ImageReader imageReader;
+    Image image;
+    byte[] bytes;
     int CAMERA_PERMISSION_CODE = 1;
 
     CaptureRequest.Builder captureBuilder;
@@ -53,8 +82,104 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         search = findViewById(R.id.search);
         search.setOnClickListener(this);
         flash = findViewById(R.id.flash);
+        textView = findViewById(R.id.textView);
         flash.setOnClickListener(this);
+        if (captImageReader == null) {
 
+            Log.d("TAGGG", "oncaptImage");
+            captImageReader = ImageReader.newInstance(720, 1080, ImageFormat.JPEG, 1);
+            captImageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
+                @Override
+                public void onImageAvailable(ImageReader reader) {
+                    imageReader = reader;
+                    image = imageReader.acquireLatestImage();
+                    ByteBuffer byteBuffer = image.getPlanes()[0].getBuffer();
+                    byteBuffer.rewind();
+                    bytes = new byte[byteBuffer.capacity()];
+                    byteBuffer.get(bytes);
+                    Bitmap sourceBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                    image.close();
+                    try {
+                        getbitmap(sourceBitmap);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }, null);
+        }
+
+
+
+    }
+
+    private void getbitmap(Bitmap sourceBitmap) throws IOException {
+        Matrix m = new Matrix();
+        int sRotation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+        int dRotation = getWindowManager().getDefaultDisplay().getRotation();
+        int jpegOrientation=(sRotation + dRotation) % 360;
+        m.setRotate((float) jpegOrientation, sourceBitmap.getWidth(), sourceBitmap.getHeight());
+        Bitmap rotatedBitmap = Bitmap.createBitmap(sourceBitmap, 0, 0, sourceBitmap.getWidth(), sourceBitmap.getHeight(), m, true);
+        FileOutputStream fos = null;
+        File dir = File.createTempFile("Image",".jpg");
+        try {
+            fos = new FileOutputStream(dir);
+            rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+            fos.flush();
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }  finally {
+            try {
+                fos.close();
+                Toast.makeText(this,"Image Captured Succesfully",Toast.LENGTH_SHORT).show();
+
+                cameraCaptureSession.setRepeatingRequest(captureBuilder.build(),null,null);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+        }
+
+        runTextRecognition(rotatedBitmap);
+
+
+
+    }
+
+    private void runTextRecognition(Bitmap rotatedBitmap) {
+        FirebaseVisionImageMetadata metadata = new FirebaseVisionImageMetadata.Builder()
+                .setWidth(480)   // 480x360 is typically sufficient for
+                .setHeight(360)  // image recognition
+                .setFormat(FirebaseVisionImageMetadata.IMAGE_FORMAT_NV21)
+                .build();
+
+        FirebaseVisionImage image = FirebaseVisionImage.fromByteArray(bytes, metadata);
+        FirebaseVisionTextRecognizer detector = FirebaseVision.getInstance().getOnDeviceTextRecognizer();
+
+        Task<FirebaseVisionText> result = detector.processImage(image)
+                        .addOnSuccessListener(new OnSuccessListener<FirebaseVisionText>() {
+                            @Override
+                            public void onSuccess(FirebaseVisionText firebaseVisionText) {
+                                // Task completed successfully
+                                // ...
+                                textView.setText(firebaseVisionText.getText().toString());
+                                Log.d("TAGG",firebaseVisionText.getText());
+
+                            }
+                        })
+                        .addOnFailureListener(
+                                new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+                                        // Task failed with an exception
+                                        // ...
+                                        Log.d("TAGG",e.toString());
+
+                                    }
+                                });
 
     }
 
@@ -151,7 +276,9 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         Surface surface = new Surface(texture);
         captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
         captureBuilder.addTarget(surface);
-        cameraDevice.createCaptureSession(Arrays.asList(surface), new CameraCaptureSession.StateCallback() {
+
+        List<Surface> surfaces = Arrays.asList(surface, captImageReader.getSurface());
+        cameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
             @Override
             public void onConfigured(@NonNull CameraCaptureSession session) {
                 if(cameraDevice !=null){
@@ -199,6 +326,48 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
     @Override
     public void onClick(View v) {
+        switch (v.getId()){
+            case R.id.search : {
+                captureImage();
+                break;
+
+            }
+        }
 
     }
+
+    private void captureImage() {
+        if (cameraDevice!=null){
+            if(cameraCaptureSession!=null){
+                try {
+                    CaptureRequest.Builder captureRequest = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+                    captureRequest.addTarget(captImageReader.getSurface());
+                    cameraCaptureSession.capture(captureRequest.build(),captureCallback,null);
+
+
+                } catch (CameraAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+    }
+    CameraCaptureSession.CaptureCallback captureCallback = new CameraCaptureSession.CaptureCallback() {
+        @Override
+        public void onCaptureStarted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, long timestamp, long frameNumber) {
+            super.onCaptureStarted(session, request, timestamp, frameNumber);
+        }
+
+        @Override
+        public void onCaptureProgressed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull CaptureResult partialResult) {
+            super.onCaptureProgressed(session, request, partialResult);
+        }
+
+        @Override
+        public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
+            super.onCaptureCompleted(session, request, result);
+
+            Log.d("YY","KDKAJDKA");
+        }
+    };
 }

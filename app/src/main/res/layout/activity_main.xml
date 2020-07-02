@@ -7,7 +7,7 @@
     tools:context=".MainActivity">
 
 
-    <TextureView
+    <com.example.dtutextrecognition.AutoFitTextureView
         android:id="@+id/photoTexture"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

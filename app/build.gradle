@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.dtutextrecognition"
-        minSdkVersion 21
+        minSdkVersion 25
         targetSdkVersion 29
         versionCode 1
         versionName "1.0"
@@ -35,5 +35,5 @@ dependencies {
     implementation 'com.google.firebase:firebase-ml-model-interpreter:22.0.3'
     implementation "com.intuit.sdp:sdp-android:1.0.6"
     implementation "com.intuit.ssp:ssp-android:1.0.6"
-
+    implementation "com.squareup.okhttp:okhttp:2.5.0"
 }

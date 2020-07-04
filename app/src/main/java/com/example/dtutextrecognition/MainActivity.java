@@ -43,16 +43,11 @@ import android.widget.Toast;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
-import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.ml.vision.FirebaseVision;
 import com.google.firebase.ml.vision.common.FirebaseVisionImage;
-import com.google.firebase.ml.vision.common.FirebaseVisionImageMetadata;
 import com.google.firebase.ml.vision.text.FirebaseVisionText;
 import com.google.firebase.ml.vision.text.FirebaseVisionTextRecognizer;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -90,32 +85,6 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         flash = findViewById(R.id.flash);
         textView = findViewById(R.id.textView);
         flash.setOnClickListener(this);
-       /* if (captImageReader == null) {
-
-            Log.d("TAGGG", "oncaptImage");
-
-            captImageReader = ImageReader.newInstance(720, 1080, ImageFormat.JPEG, 1);
-            captImageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
-                @Override
-                public void onImageAvailable(ImageReader reader) {
-                    imageReader = reader;
-                    image = imageReader.acquireLatestImage();
-                    ByteBuffer byteBuffer = image.getPlanes()[0].getBuffer();
-                    byteBuffer.rewind();
-                    bytes = new byte[byteBuffer.capacity()];
-                    byteBuffer.get(bytes);
-                    Bitmap sourceBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                    image.close();
-                    try {
-                        getbitmap(sourceBitmap);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }, null);
-        }*/
-
-
 
     }
 
@@ -126,32 +95,15 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         int jpegOrientation=(sRotation + dRotation) % 360;
         m.setRotate((float) jpegOrientation, sourceBitmap.getWidth(), sourceBitmap.getHeight());
         Bitmap rotatedBitmap = Bitmap.createBitmap(sourceBitmap, 0, 0, sourceBitmap.getWidth(), sourceBitmap.getHeight(), m, true);
-        FileOutputStream fos = null;
-        File dir = File.createTempFile("Image",".jpg");
         runTextRecognition(rotatedBitmap);
-        try {
-            fos = new FileOutputStream(dir);
-            rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
 
-
-            fos.flush();
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }  finally {
             try {
-                fos.close();
                 Toast.makeText(this,"Image Captured Succesfully",Toast.LENGTH_SHORT).show();
-
                 cameraCaptureSession.setRepeatingRequest(captureBuilder.build(),null,null);
-            } catch (IOException e) {
-                e.printStackTrace();
             } catch (Exception e){
                 e.printStackTrace();
             }
-        }
+
 
 
 
@@ -159,11 +111,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     }
 
     private void runTextRecognition(Bitmap rotatedBitmap) {
-        FirebaseVisionImageMetadata metadata = new FirebaseVisionImageMetadata.Builder()
-                .setWidth(480)   // 480x360 is typically sufficient for
-                .setHeight(360)  // image recognition
-                .setFormat(FirebaseVisionImageMetadata.IMAGE_FORMAT_NV21)
-                .build();
+
 
         FirebaseVisionImage image = FirebaseVisionImage.fromBitmap(rotatedBitmap);
         FirebaseVisionTextRecognizer detector = FirebaseVision.getInstance().getOnDeviceTextRecognizer();
@@ -278,7 +226,6 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
         @Override
         public int compare(Size lhs, Size rhs) {
-            // We cast here to ensure the multiplications won't overflow
             return Long.signum((long) lhs.getWidth() * lhs.getHeight() -
                     (long) rhs.getWidth() * rhs.getHeight());
         }
@@ -315,11 +262,6 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         dimension = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class),
                 rotatedWidth, rotatedHeight,maxPreviewWidth,
                 maxPreviewHeight);
-//                mVideoSize = chooseOptimalSize(map.getOutputSizes(MediaRecorder.class), rotatedWidth, rotatedHeight);
-//                mImageSize = chooseOptimalSize(map.getOutputSizes(ImageFormat.JPEG), rotatedWidth, rotatedHeight);
-//                mImageReader = ImageReader.newInstance(mImageSize.getWidth(), mImageSize.getHeight(), ImageFormat.JPEG, 1);
-//                mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, mBackgroundHandler);
-
         return;
 
     }
@@ -427,9 +369,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private static Size chooseOptimalSize(Size[] choices, int textureViewWidth,
                                           int textureViewHeight, int maxWidth, int maxHeight) {
 
-        // Collect the supported resolutions that are at least as big as the preview Surface
         List<Size> bigEnough = new ArrayList<>();
-        // Collect the supported resolutions that are smaller than the preview Surface
         List<Size> notBigEnough = new ArrayList<>();
 
         for (Size option : choices) {
@@ -443,15 +383,11 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 }
             }
         }
-
-        // Pick the smallest of those big enough. If there is no one big enough, pick the
-        // largest of those not big enough.
         if (bigEnough.size() > 0) {
             return Collections.min(bigEnough, new CompareSizesByArea());
         } else if (notBigEnough.size() > 0) {
             return Collections.max(notBigEnough, new CompareSizesByArea());
         } else {
-            Log.e("TAG", "Couldn't find any suitable preview size");
             return choices[0];
         }
     }

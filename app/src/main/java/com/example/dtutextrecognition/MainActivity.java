@@ -56,6 +56,7 @@ import com.squareup.okhttp.Response;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONStringer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -127,8 +128,9 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                         mContentFindingProgressBar.setVisibility(View.GONE);
                         mTextView.setVisibility(View.VISIBLE);
                         mTextView.setText(firebaseVisionText.getText().toString());
+                        fetchData();
                         processTextRecognitionResult(firebaseVisionText);
-                        Log.d("TAGG",firebaseVisionText.getText());
+//                        Log.d("TAGG",firebaseVisionText.getText());
 
                     }
                 })
@@ -151,7 +153,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             Toast.makeText(getApplicationContext(), "No Text found on the screen",Toast.LENGTH_SHORT).show();
             return;
         }
-        mTextFromImage =new StringBuilder();
+        mTextFromImage = new StringBuilder();
         for(int i=0;i<blocks.size();i++){
             List<FirebaseVisionText.Line> lines = blocks.get(i).getLines();
             for(int j=0;j<lines.size();j++){
@@ -161,7 +163,6 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 }
             }
         }
-        Log.d("*********", mTextFromImage.toString());
     }
 
     @Override
@@ -367,9 +368,6 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 e.printStackTrace();
             }
         }
-
-
-
     };
 
     private static SparseIntArray ORIENTATIONS = new SparseIntArray();
@@ -472,11 +470,11 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         }
     };
 
-    void fetchData() {
+    void fetchData(){
         new Thread(new Runnable() {
             @Override
             public void run() {
-                try {
+                try  {
                     OkHttpClient client = new OkHttpClient();
                     MediaType mediaType = MediaType.parse("text/plain");
                     RequestBody body = RequestBody.create(mediaType, mTextView.getText().toString());

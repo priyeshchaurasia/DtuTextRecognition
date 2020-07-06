@@ -471,4 +471,30 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             Log.d("YY","KDKAJDKA");
         }
     };
+
+    void fetchData() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    OkHttpClient client = new OkHttpClient();
+                    MediaType mediaType = MediaType.parse("text/plain");
+                    RequestBody body = RequestBody.create(mediaType, mTextView.getText().toString());
+                    Request request = new Request.Builder()
+                            .url("https://api.smrzr.io/summarize?ratio=0.15")
+                            .method("POST", body)
+                            .addHeader("Content-Type", "text/plain")
+                            .build();
+                    Response response = client.newCall(request).execute();
+                    String jsonData = response.body().string();
+                    JSONObject Jobject = new JSONObject(jsonData);
+                    String Jarray = Jobject.getString("summary");
+                    Log.d("************", Jarray);
+                    mTextView.setText(Jarray);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
 }

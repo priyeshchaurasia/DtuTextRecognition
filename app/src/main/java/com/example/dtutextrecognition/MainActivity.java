@@ -493,7 +493,11 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                     JSONObject Jobject = new JSONObject(jsonData);
                     String Jarray = Jobject.getString("summary");
                     Log.d("************", Jarray);
-                    openFragment(Jarray);
+                    if(Jarray==null || Jarray.length()==0) {
+                        openFragment(mTextView.getText().toString());
+                    }else{
+                        openFragment(Jarray);
+                    }
                    // mTextView.setText(Jarray);
                 } catch (Exception e) {
                     e.printStackTrace();

@@ -4,6 +4,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 
 import android.Manifest;
 import android.content.Context;
@@ -36,6 +38,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -66,7 +69,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener {
+public class MainActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener, BlankFragment.OnFragmentInteractionListener {
     private AutoFitTextureView mTextureView;
     private Button mSearchButton, mFlashButton;
     private boolean isFlashOn=false;
@@ -85,6 +88,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private StringBuilder mTextFromImage;
     private ProgressBar mContentFindingProgressBar;
     private static final int CAMERA_PERMISSION_CODE = 1;
+    private FrameLayout fragmentContainer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,6 +102,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         mTextView = findViewById(R.id.textView);
         mFlashButton.setOnClickListener(this);
         mContentFindingProgressBar = findViewById(R.id.content_find_progress);
+        fragmentContainer = (FrameLayout) findViewById(R.id.fragment_container);
     }
 
     private void getbitmap(Bitmap sourceBitmap) throws IOException {
@@ -126,10 +131,10 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                     @Override
                     public void onSuccess(FirebaseVisionText firebaseVisionText) {
                         mContentFindingProgressBar.setVisibility(View.GONE);
-                        mTextView.setVisibility(View.VISIBLE);
-                        mTextView.setText(firebaseVisionText.getText().toString());
-                        fetchData();
-                        processTextRecognitionResult(firebaseVisionText);
+                       // mTextView.setVisibility(View.VISIBLE);
+                        mTextView.setText(firebaseVisionText.getText().toString());//Image Text
+                        fetchData();//Coverts text and gives output
+                       // processTextRecognitionResult(firebaseVisionText);
 //                        Log.d("TAGG",firebaseVisionText.getText());
 
                     }
@@ -488,11 +493,25 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                     JSONObject Jobject = new JSONObject(jsonData);
                     String Jarray = Jobject.getString("summary");
                     Log.d("************", Jarray);
-                    mTextView.setText(Jarray);
+                    openFragment(Jarray);
+                   // mTextView.setText(Jarray);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         }).start();
+    }
+    public void openFragment(String text) {
+        BlankFragment fragment = BlankFragment.newInstance(text);
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        FragmentTransaction transaction = fragmentManager.beginTransaction();
+        transaction.setCustomAnimations(R.anim.enter_from_right, R.anim.exit_to_right, R.anim.enter_from_right, R.anim.exit_to_right);
+        transaction.addToBackStack(null);
+        transaction.add(R.id.fragment_container, fragment, "BLANK_FRAGMENT").commit();
+    }
+    @Override
+    public void onFragmentInteraction(String sendBackText) {
+        //editText.setText(sendBackText);
+        onBackPressed();
     }
 }

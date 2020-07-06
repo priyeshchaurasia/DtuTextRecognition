@@ -180,7 +180,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     public void onStart() {
         super.onStart();
         Log.d("TAGGG", "onStart");
-        requestPermissions(new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
+        requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.INTERNET}, CAMERA_PERMISSION_CODE);
     }
 
     @Override

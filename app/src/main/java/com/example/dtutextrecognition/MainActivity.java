@@ -8,6 +8,7 @@ import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
 import android.Manifest;
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -30,6 +31,7 @@ import android.media.Image;
 import android.media.ImageReader;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 import android.util.Size;
@@ -69,6 +71,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+
 public class MainActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener, BlankFragment.OnFragmentInteractionListener {
     private AutoFitTextureView mTextureView;
     private Button mSearchButton, mFlashButton;
@@ -84,6 +87,9 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private ImageReader mImageReader;
     private byte[] bytes;
     private Image mImage;
+    HandlerThread handlerThread;
+    private Handler backgroundHandler = new Handler();
+
     private CaptureRequest.Builder mPreviewRequestBuilder;
     private StringBuilder mTextFromImage;
     private ProgressBar mContentFindingProgressBar;
@@ -173,19 +179,56 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     @Override
     protected void onResume() {
         super.onResume();
-        if(mCameraCaptureSession!=null){
+
+
+        if (mTextureView.isAvailable()) {
             try {
-                handleCamera(mTextureView.getWidth(), mTextureView.getHeight());
+                handleCamera(mTextureView.getWidth(),mTextureView.getHeight());
             } catch (CameraAccessException e) {
                 e.printStackTrace();
             }
+        } else {
+            mTextureView.setSurfaceTextureListener(this);
         }
+
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+
     }
+    @Override
+    public void onStop() {
+
+        super.onStop();
+        Log.d("TAGGG", "onStop");
+        try {
+            mCameraCaptureSession.close();
+            cameraManager = null;
+            mCameraDevice.close();
+            mCameraCaptureSession = null;
+            stopBackgroundThread();
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
+    private void stopBackgroundThread() throws InterruptedException {
+
+        Log.d("TAGGG", "onStopBack");
+        try {
+            handlerThread.quitSafely();
+            handlerThread.join();
+            backgroundHandler = null;
+            handlerThread = null;
+        }catch (Exception e) {
+        }
+    }
+
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override

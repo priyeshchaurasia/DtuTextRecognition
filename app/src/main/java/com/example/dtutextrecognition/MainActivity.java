@@ -173,6 +173,13 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     @Override
     protected void onResume() {
         super.onResume();
+        if(mCameraCaptureSession!=null){
+            try {
+                handleCamera(mTextureView.getWidth(), mTextureView.getHeight());
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override

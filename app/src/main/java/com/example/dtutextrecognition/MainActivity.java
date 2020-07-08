@@ -181,7 +181,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         super.onResume();
 
 
-        if (mTextureView.isAvailable()) {
+      /*  if (mTextureView.isAvailable()) {
             try {
                 handleCamera(mTextureView.getWidth(),mTextureView.getHeight());
             } catch (CameraAccessException e) {
@@ -189,7 +189,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             }
         } else {
             mTextureView.setSurfaceTextureListener(this);
-        }
+        }*/
 
     }
 
@@ -202,7 +202,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     public void onStop() {
 
         super.onStop();
-        Log.d("TAGGG", "onStop");
+        /*Log.d("TAGGG", "onStop");
         try {
             mCameraCaptureSession.close();
             cameraManager = null;
@@ -212,7 +212,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
         } catch (InterruptedException e) {
             e.printStackTrace();
-        }
+        }*/
 
 
     }

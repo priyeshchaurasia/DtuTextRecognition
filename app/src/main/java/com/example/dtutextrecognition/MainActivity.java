@@ -369,7 +369,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                                     Log.e("********", "Failed to start camera preview.", e);
                                 }
                             }
-                        }, 500);
+                        }, 200);
                     }catch (Exception e){}}}
             @Override
             public void onConfigureFailed(@NonNull CameraCaptureSession session) {

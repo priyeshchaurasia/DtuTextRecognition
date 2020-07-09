@@ -364,7 +364,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                                 try {
                                     mCameraCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(), null, backgroundHandler);
                                 } catch (CameraAccessException e) {
-                                    Log.e(""********"", "Failed to start camera preview because it couldn't access camera", e);
+                                    Log.e("********", "Failed to start camera preview because it couldn't access camera", e);
                                 } catch (IllegalStateException e) {
                                     Log.e("********", "Failed to start camera preview.", e);
                                 }

@@ -23,6 +23,7 @@ import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
+import android.hardware.camera2.CaptureFailure;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
@@ -72,7 +73,7 @@ import java.util.Comparator;
 import java.util.List;
 
 
-public class MainActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener, BlankFragment.OnFragmentInteractionListener {
+public class MainActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener, SummaryFragment.OnFragmentInteractionListener {
     private AutoFitTextureView mTextureView;
     private Button mSearchButton, mFlashButton;
     private boolean isFlashOn=false;
@@ -137,10 +138,10 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                     @Override
                     public void onSuccess(FirebaseVisionText firebaseVisionText) {
                         mContentFindingProgressBar.setVisibility(View.GONE);
-                       // mTextView.setVisibility(View.VISIBLE);
+                        // mTextView.setVisibility(View.VISIBLE);
                         mTextView.setText(firebaseVisionText.getText().toString());//Image Text
                         fetchData();//Coverts text and gives output
-                       // processTextRecognitionResult(firebaseVisionText);
+                        // processTextRecognitionResult(firebaseVisionText);
 //                        Log.d("TAGG",firebaseVisionText.getText());
 
                     }
@@ -176,12 +177,11 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         }
     }
 
+
     @Override
     protected void onResume() {
         super.onResume();
-
-
-      /*  if (mTextureView.isAvailable()) {
+        if (mTextureView.isAvailable() && mCameraCaptureSession!=null) {
             try {
                 handleCamera(mTextureView.getWidth(),mTextureView.getHeight());
             } catch (CameraAccessException e) {
@@ -189,20 +189,19 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             }
         } else {
             mTextureView.setSurfaceTextureListener(this);
-        }*/
-
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-
     }
+
     @Override
     public void onStop() {
 
         super.onStop();
-        /*Log.d("TAGGG", "onStop");
+        Log.d("TAGGG", "onStop");
         try {
             mCameraCaptureSession.close();
             cameraManager = null;
@@ -212,7 +211,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
         } catch (InterruptedException e) {
             e.printStackTrace();
-        }*/
+        }
 
 
     }
@@ -358,15 +357,20 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                     mCameraCaptureSession = session;
                     try {
                         mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-                        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_STATE_FOCUSED_LOCKED);
-                        mCameraCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(),null,null);
-
-                    } catch (CameraAccessException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-
+                        //put a delay to fix crashes in some devices
+                        new Handler().postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    mCameraCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(), null, backgroundHandler);
+                                } catch (CameraAccessException e) {
+                                    Log.e(""********"", "Failed to start camera preview because it couldn't access camera", e);
+                                } catch (IllegalStateException e) {
+                                    Log.e("********", "Failed to start camera preview.", e);
+                                }
+                            }
+                        }, 500);
+                    }catch (Exception e){}}}
             @Override
             public void onConfigureFailed(@NonNull CameraCaptureSession session) {
 
@@ -548,7 +552,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                     }else{
                         openFragment(Jarray);
                     }
-                   // mTextView.setText(Jarray);
+                    // mTextView.setText(Jarray);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -556,12 +560,12 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         }).start();
     }
     public void openFragment(String text) {
-        BlankFragment fragment = BlankFragment.newInstance(text);
+        SummaryFragment fragment = SummaryFragment.newInstance(text);
         FragmentManager fragmentManager = getSupportFragmentManager();
         FragmentTransaction transaction = fragmentManager.beginTransaction();
         transaction.setCustomAnimations(R.anim.enter_from_right, R.anim.exit_to_right, R.anim.enter_from_right, R.anim.exit_to_right);
         transaction.addToBackStack(null);
-        transaction.add(R.id.fragment_container, fragment, "BLANK_FRAGMENT").commit();
+        transaction.add(R.id.fragment_container, fragment, "Summary_Fragment").commit();
     }
     @Override
     public void onFragmentInteraction(String sendBackText) {

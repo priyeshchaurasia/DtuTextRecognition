@@ -12,7 +12,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
-public class BlankFragment extends Fragment {
+public class SummaryFragment extends Fragment {
     private static final String TEXT = "text";
 
     private String mText;
@@ -21,12 +21,12 @@ public class BlankFragment extends Fragment {
     private Button buttonFragment;
 
 
-    public BlankFragment() {
+    public SummaryFragment() {
         // Required empty public constructor
     }
 
-    public static BlankFragment newInstance(String text) {
-        BlankFragment fragment = new BlankFragment();
+    public static SummaryFragment newInstance(String text) {
+        SummaryFragment fragment = new SummaryFragment();
         Bundle args = new Bundle();
         args.putString(TEXT, text);
         fragment.setArguments(args);

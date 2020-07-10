@@ -150,8 +150,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                         new OnFailureListener() {
                             @Override
                             public void onFailure(@NonNull Exception e) {
-                                // Task failed with an exception
-                                // ...
+                                Toast.makeText(getApplicationContext(),"No Internet Connection", Toast.LENGTH_SHORT).show();
                                 Log.d("TAGG",e.toString());
 
                             }
@@ -194,6 +193,13 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
     @Override
     protected void onPause() {
+         isFlashOn=!isFlashOn;
+        if(isFlashOn){
+            mFlashButton.setBackground(getDrawable(R.drawable.ic_flash_off));
+        }else{
+            mFlashButton.setBackground(getDrawable(R.drawable.ic_flash_on));
+        }
+        super.onPause();
         super.onPause();
     }
 

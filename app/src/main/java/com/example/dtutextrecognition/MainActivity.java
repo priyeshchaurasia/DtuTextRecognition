@@ -1,22 +1,28 @@
 package com.example.dtutextrecognition;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
 import android.Manifest;
 import android.annotation.TargetApi;
+import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.SurfaceTexture;
+import android.graphics.drawable.ColorDrawable;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -30,10 +36,12 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -49,6 +57,7 @@ import android.widget.Toast;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.firebase.ml.vision.FirebaseVision;
 import com.google.firebase.ml.vision.common.FirebaseVisionImage;
 import com.google.firebase.ml.vision.text.FirebaseVisionText;
@@ -58,13 +67,22 @@ import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.RequestBody;
 import com.squareup.okhttp.Response;
+import com.yalantis.ucrop.UCrop;
+import com.yalantis.ucrop.UCropActivity;
+import com.yalantis.ucrop.util.FileUtils;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
+import org.w3c.dom.Text;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -80,6 +98,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private CameraCharacteristics mCameraCharacterstics;
     private CameraDevice mCameraDevice;
     private TextView mTextView;
+    BottomSheetDialog dialog;
     private String mCameraID;
     private CameraCaptureSession mCameraCaptureSession;
     private Size mPreviewDimesion;
@@ -111,15 +130,33 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         mContentFindingProgressBar = findViewById(R.id.content_find_progress);
         fragmentContainer = (FrameLayout) findViewById(R.id.fragment_container);
     }
-
-    private void getbitmap(Bitmap sourceBitmap) throws IOException {
+    private void openCropActivity(Uri sourceUri, Uri destinationUri) {
+        UCrop.Options options = new UCrop.Options();
+        options.setFreeStyleCropEnabled(true);
+        UCrop.of(sourceUri, destinationUri)
+                .withMaxResultSize(1920, 1080)
+                .withOptions(options)
+                .withAspectRatio(1,1)
+                .start(this);
+    }
+        private void getbitmap(Bitmap sourceBitmap) throws IOException {
         Matrix m = new Matrix();
         int sRotation = mCameraCharacterstics.get(CameraCharacteristics.SENSOR_ORIENTATION);
         int dRotation = getWindowManager().getDefaultDisplay().getRotation();
         int jpegOrientation=(sRotation + dRotation) % 360;
         m.setRotate((float) jpegOrientation, sourceBitmap.getWidth(), sourceBitmap.getHeight());
         Bitmap rotatedBitmap = Bitmap.createBitmap(sourceBitmap, 0, 0, sourceBitmap.getWidth(), sourceBitmap.getHeight(), m, true);
-        runTextRecognition(rotatedBitmap);
+            FileOutputStream fos = null;
+            File dir  = File.createTempFile("image", ".jpg");
+            File dir2  = File.createTempFile("image2", ".jpg");
+            try {
+                fos = new FileOutputStream(dir);
+                rotatedBitmap.compress(Bitmap.CompressFormat.JPEG,95,fos);
+                fos.flush();
+                openCropActivity(Uri.fromFile(dir),Uri.fromFile(dir2));
+
+            }
+            catch (Exception e){}
 
         try {
             Toast.makeText(this,"Image Captured Succesfully",Toast.LENGTH_SHORT).show();
@@ -128,6 +165,38 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             e.printStackTrace();
         }
     }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK && requestCode == UCrop.REQUEST_CROP) {
+            final Uri resultUri = UCrop.getOutput(data);
+            try {
+                Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), resultUri);
+                dialog = new BottomSheetDialog(MainActivity.this);
+                dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+                View view = getLayoutInflater().inflate(R.layout.layout_summary, null);
+
+                TextView txt = view.findViewById(R.id.summarytxt);
+                TextView txt1 = view.findViewById(R.id.summyheading);
+                txt.setVisibility(View.GONE);
+                txt1.setVisibility(View.GONE);
+                dialog.setContentView(view);
+                dialog.show();
+                runTextRecognition(bitmap);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        } else if (resultCode == UCrop.RESULT_ERROR) {
+            final Throwable cropError = UCrop.getError(data);
+        }
+
+    }
+
+
+
+
 
     private void runTextRecognition(Bitmap rotatedBitmap) {
         FirebaseVisionImage image = FirebaseVisionImage.fromBitmap(rotatedBitmap);
@@ -158,23 +227,23 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
 
     }
 
-    private void processTextRecognitionResult(FirebaseVisionText texts) {
-        List<FirebaseVisionText.TextBlock> blocks = texts.getTextBlocks();
-        if (blocks.size() == 0) {
-            Toast.makeText(getApplicationContext(), "No Text found on the screen",Toast.LENGTH_SHORT).show();
-            return;
-        }
-        mTextFromImage = new StringBuilder();
-        for(int i=0;i<blocks.size();i++){
-            List<FirebaseVisionText.Line> lines = blocks.get(i).getLines();
-            for(int j=0;j<lines.size();j++){
-                List<FirebaseVisionText.Element> elements = lines.get(j).getElements();
-                for(int k=0;k<elements.size();k++){
-                    mTextFromImage.append(elements.get(k).getText()+" ");
-                }
-            }
-        }
-    }
+//    private void processTextRecognitionResult(FirebaseVisionText texts) {
+//        List<FirebaseVisionText.TextBlock> blocks = texts.getTextBlocks();
+//        if (blocks.size() == 0) {
+//            Toast.makeText(getApplicationContext(), "No Text found on the screen",Toast.LENGTH_SHORT).show();
+//            return;
+//        }
+//        mTextFromImage = new StringBuilder();
+//        for(int i=0;i<blocks.size();i++){
+//            List<FirebaseVisionText.Line> lines = blocks.get(i).getLines();
+//            for(int j=0;j<lines.size();j++){
+//                List<FirebaseVisionText.Element> elements = lines.get(j).getElements();
+//                for(int k=0;k<elements.size();k++){
+//                    mTextFromImage.append(elements.get(k).getText()+" ");
+//                }
+//            }
+//        }
+//    }
 
 
     @Override
@@ -303,7 +372,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-        cameraManager.openCamera(mCameraID, stateCallback, null);
+        cameraManager.openCamera(mCameraID, stateCallback, backgroundHandler);
     }
 
     static class CompareSizesByArea implements Comparator<Size> {
@@ -333,13 +402,10 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             maxPreviewWidth = displaySize.y;
             maxPreviewHeight = displaySize.x;
         }
-        Size largest = Collections.max(
-                Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
-                new CompareSizesByArea());
-        captImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(),
+        captImageReader = ImageReader.newInstance(1920, 1080,
                 ImageFormat.JPEG, /*maxImages*/2);
         captImageReader.setOnImageAvailableListener(
-                mOnImageAvailableListener, null);
+                mOnImageAvailableListener, backgroundHandler);
 
         mPreviewDimesion = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class),
                 rotatedWidth, rotatedHeight,maxPreviewWidth,
@@ -510,7 +576,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 try {
                     CaptureRequest.Builder captureRequest = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
                     captureRequest.addTarget(captImageReader.getSurface());
-                    mCameraCaptureSession.capture(captureRequest.build(),captureCallback,null);
+                    mCameraCaptureSession.capture(captureRequest.build(),captureCallback,backgroundHandler);
                 } catch (CameraAccessException e) {
                     e.printStackTrace();
                 }
@@ -551,12 +617,31 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                     Response response = client.newCall(request).execute();
                     String jsonData = response.body().string();
                     JSONObject Jobject = new JSONObject(jsonData);
-                    String Jarray = Jobject.getString("summary");
+                    final String Jarray = Jobject.getString("summary");
                     Log.d("************", Jarray);
                     if(Jarray==null || Jarray.length()==0) {
                         openFragment(mTextView.getText().toString());
                     }else{
-                        openFragment(Jarray);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+
+                                View view = getLayoutInflater().inflate(R.layout.layout_summary, null);
+                                ProgressBar progressBar = view.findViewById(R.id.progress_horizontal);
+                                progressBar.setVisibility(View.GONE);
+                                TextView txt = view.findViewById(R.id.summarytxt);
+                                txt.setText(Jarray);
+
+                                dialog.setContentView(view);
+                                dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+
+                                dialog.show();
+                            }
+                        });
+
+//
+//
+//                        openFragment(Jarray);
                     }
                     // mTextView.setText(Jarray);
                 } catch (Exception e) {

@@ -23,6 +23,7 @@
         android:id="@+id/summyheading"
         android:text="Summary"
         android:gravity="center"
+        android:textStyle="bold"
         android:textColor="#000000"
         android:textSize="@dimen/_14ssp"
         android:layout_width="match_parent"

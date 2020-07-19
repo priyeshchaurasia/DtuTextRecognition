@@ -620,7 +620,17 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                     final String Jarray = Jobject.getString("summary");
                     Log.d("************", Jarray);
                     if(Jarray==null || Jarray.length()==0) {
-                        openFragment(mTextView.getText().toString());
+
+                        View view = getLayoutInflater().inflate(R.layout.layout_summary, null);
+                        ProgressBar progressBar = view.findViewById(R.id.progress_horizontal);
+                        progressBar.setVisibility(View.GONE);
+                        TextView txt = view.findViewById(R.id.summarytxt);
+                        txt.setText(mTextView.getText().toString());
+
+                        dialog.setContentView(view);
+                        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+
+                        dialog.show();
                     }else{
                         runOnUiThread(new Runnable() {
                             @Override

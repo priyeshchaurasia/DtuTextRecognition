@@ -106,6 +106,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private ImageReader captImageReader;
     private ImageReader mImageReader;
     private byte[] bytes;
+    Bitmap rotatedBitmap;
     private Image mImage;
     HandlerThread handlerThread;
     private Handler backgroundHandler = new Handler();
@@ -136,7 +137,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         UCrop.of(sourceUri, destinationUri)
                 .withMaxResultSize(1920, 1080)
                 .withOptions(options)
-                .withAspectRatio(1,1)
+                .withAspectRatio(9,15)
                 .start(this);
     }
         private void getbitmap(Bitmap sourceBitmap) throws IOException {
@@ -145,7 +146,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         int dRotation = getWindowManager().getDefaultDisplay().getRotation();
         int jpegOrientation=(sRotation + dRotation) % 360;
         m.setRotate((float) jpegOrientation, sourceBitmap.getWidth(), sourceBitmap.getHeight());
-        Bitmap rotatedBitmap = Bitmap.createBitmap(sourceBitmap, 0, 0, sourceBitmap.getWidth(), sourceBitmap.getHeight(), m, true);
+        rotatedBitmap = Bitmap.createBitmap(sourceBitmap, 0, 0, sourceBitmap.getWidth(), sourceBitmap.getHeight(), m, true);
             FileOutputStream fos = null;
             File dir  = File.createTempFile("image", ".jpg");
             File dir2  = File.createTempFile("image2", ".jpg");
@@ -172,10 +173,12 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         if (resultCode == RESULT_OK && requestCode == UCrop.REQUEST_CROP) {
             final Uri resultUri = UCrop.getOutput(data);
             try {
+                mContentFindingProgressBar.setVisibility(View.GONE);
                 Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), resultUri);
                 dialog = new BottomSheetDialog(MainActivity.this);
                 dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
                 View view = getLayoutInflater().inflate(R.layout.layout_summary, null);
+
 
                 TextView txt = view.findViewById(R.id.summarytxt);
                 TextView txt1 = view.findViewById(R.id.summyheading);
@@ -188,8 +191,15 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 e.printStackTrace();
             }
 
-        } else if (resultCode == UCrop.RESULT_ERROR) {
+        }
+        if (resultCode == RESULT_CANCELED && requestCode == UCrop.REQUEST_CROP) {
+
+            mContentFindingProgressBar.setVisibility(View.GONE);
+        }
+        else if (resultCode == UCrop.RESULT_ERROR) {
             final Throwable cropError = UCrop.getError(data);
+
+            mContentFindingProgressBar.setVisibility(View.GONE);
         }
 
     }
@@ -226,24 +236,6 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                         });
 
     }
-
-//    private void processTextRecognitionResult(FirebaseVisionText texts) {
-//        List<FirebaseVisionText.TextBlock> blocks = texts.getTextBlocks();
-//        if (blocks.size() == 0) {
-//            Toast.makeText(getApplicationContext(), "No Text found on the screen",Toast.LENGTH_SHORT).show();
-//            return;
-//        }
-//        mTextFromImage = new StringBuilder();
-//        for(int i=0;i<blocks.size();i++){
-//            List<FirebaseVisionText.Line> lines = blocks.get(i).getLines();
-//            for(int j=0;j<lines.size();j++){
-//                List<FirebaseVisionText.Element> elements = lines.get(j).getElements();
-//                for(int k=0;k<elements.size();k++){
-//                    mTextFromImage.append(elements.get(k).getText()+" ");
-//                }
-//            }
-//        }
-//    }
 
 
     @Override

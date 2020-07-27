@@ -37,6 +37,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.net.Uri;
+import android.nfc.Tag;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -49,6 +50,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -62,7 +64,9 @@ import com.google.firebase.ml.vision.FirebaseVision;
 import com.google.firebase.ml.vision.common.FirebaseVisionImage;
 import com.google.firebase.ml.vision.text.FirebaseVisionText;
 import com.google.firebase.ml.vision.text.FirebaseVisionTextRecognizer;
+import com.google.gson.JsonObject;
 import com.squareup.okhttp.MediaType;
+import com.squareup.okhttp.MultipartBuilder;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.RequestBody;
@@ -90,10 +94,16 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import okhttp3.MultipartBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Retrofit;
 
-public class MainActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener, SummaryFragment.OnFragmentInteractionListener {
+
+public class MainActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener {
     private AutoFitTextureView mTextureView;
-    private Button mSearchButton, mFlashButton;
+    private Button mSearchButton, mFlashButton,mSign,mOK;
+    private EditText editText;
     private boolean isFlashOn=false;
     private CameraCharacteristics mCameraCharacterstics;
     private CameraDevice mCameraDevice;
@@ -104,6 +114,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private Size mPreviewDimesion;
     private CameraManager cameraManager;
     private ImageReader captImageReader;
+     boolean isWebOn=false;
     private ImageReader mImageReader;
     private byte[] bytes;
     Bitmap rotatedBitmap;
@@ -127,9 +138,14 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         mSearchButton.setOnClickListener(this);
         mFlashButton = findViewById(R.id.flash);
         mTextView = findViewById(R.id.textView);
+        editText = findViewById(R.id.apiLink);
+        mSign = findViewById(R.id.sign);
+        mOK = findViewById(R.id.ok);
+        mOK.setOnClickListener(this);
+        mSign.setOnClickListener(this);
         mFlashButton.setOnClickListener(this);
         mContentFindingProgressBar = findViewById(R.id.content_find_progress);
-        fragmentContainer = (FrameLayout) findViewById(R.id.fragment_container);
+
     }
     private void openCropActivity(Uri sourceUri, Uri destinationUri) {
         UCrop.Options options = new UCrop.Options();
@@ -137,7 +153,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         UCrop.of(sourceUri, destinationUri)
                 .withMaxResultSize(1920, 1080)
                 .withOptions(options)
-                .withAspectRatio(9,15)
+                .withAspectRatio(8,12)
                 .start(this);
     }
         private void getbitmap(Bitmap sourceBitmap) throws IOException {
@@ -150,17 +166,27 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             FileOutputStream fos = null;
             File dir  = File.createTempFile("image", ".jpg");
             File dir2  = File.createTempFile("image2", ".jpg");
-            try {
-                fos = new FileOutputStream(dir);
-                rotatedBitmap.compress(Bitmap.CompressFormat.JPEG,95,fos);
-                fos.flush();
-                openCropActivity(Uri.fromFile(dir),Uri.fromFile(dir2));
 
-            }
-            catch (Exception e){}
+            String apiCheck = editText.getText().toString();
+
+
+
+                try {
+                    fos = new FileOutputStream(dir);
+                    rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos);
+                    fos.flush();
+                    if(isWebOn){
+                        fetchSignData(dir);
+                    }
+                    else {
+                    Toast.makeText(this,"Image Captured Succesfully",Toast.LENGTH_SHORT).show();
+                    openCropActivity(Uri.fromFile(dir), Uri.fromFile(dir2));}
+
+                } catch (Exception e) {
+                }
+
 
         try {
-            Toast.makeText(this,"Image Captured Succesfully",Toast.LENGTH_SHORT).show();
             mCameraCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(),null,null);
         } catch (Exception e){
             e.printStackTrace();
@@ -539,6 +565,29 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 captureImage();
                 break;
             }
+            case R.id.ok:{
+                editText.setVisibility(View.GONE);
+                mOK.setVisibility(View.GONE);
+                break;
+
+
+            }
+            case  R.id.sign :{
+                if(!isWebOn) {
+                    mSign.setBackground(getDrawable(R.drawable.ic_link_on));
+                    editText.setVisibility(View.VISIBLE);
+                    mOK.setVisibility(View.VISIBLE);
+
+                }else{
+                    mSign.setBackground(getDrawable(R.drawable.ic_link_off));
+                    editText.setVisibility(View.GONE);
+                    mOK.setVisibility(View.GONE);
+
+                }
+                isWebOn=!isWebOn;
+                break;
+
+            }
             case R.id.flash:{
                 if(isFlashOn){
                     mFlashButton.setBackground(getDrawable(R.drawable.ic_flash_off));
@@ -652,17 +701,48 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             }
         }).start();
     }
-    public void openFragment(String text) {
-        SummaryFragment fragment = SummaryFragment.newInstance(text);
-        FragmentManager fragmentManager = getSupportFragmentManager();
-        FragmentTransaction transaction = fragmentManager.beginTransaction();
-        transaction.setCustomAnimations(R.anim.enter_from_right, R.anim.exit_to_right, R.anim.enter_from_right, R.anim.exit_to_right);
-        transaction.addToBackStack(null);
-        transaction.add(R.id.fragment_container, fragment, "Summary_Fragment").commit();
+
+    void fetchSignData(final File dir){
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    okhttp3.RequestBody body = okhttp3.RequestBody.create(okhttp3.MediaType.parse("image/*"), dir);
+                    MultipartBody.Part part = MultipartBody.Part.createFormData("file", dir.getName(), body);
+                    Retrofit retrofit = NetworkClient.getRetrofit(editText.getText().toString());
+                    UploadApis uploadApis = retrofit.create(UploadApis.class);
+                    Call call = uploadApis.uploadImage(part);
+                    call.enqueue(new Callback() {
+                        @Override
+                        public void onResponse(Call call, retrofit2.Response response) {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        Toast.makeText(MainActivity.this, ((ApiResponse) response.body()).getResult(), Toast.LENGTH_SHORT).show();
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            });
+
+
+                        }
+
+                        @Override
+                        public void onFailure(Call call, Throwable t) {
+                            Log.d("TAGG",t.toString());
+                            Toast.makeText(MainActivity.this, "Failed", Toast.LENGTH_SHORT).show();
+
+                        }
+                    });
+
+
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "Failed", Toast.LENGTH_SHORT).show();
+                }
+            }}).start();
+
     }
-    @Override
-    public void onFragmentInteraction(String sendBackText) {
-        //editText.setText(sendBackText);
-        onBackPressed();
-    }
+
 }

@@ -9,25 +9,60 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-    <com.example.dtutextrecognition.AutoFitTextureView
-        android:id="@+id/photoTexture"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        tools:layout_editor_absoluteX="0dp"
-        tools:layout_editor_absoluteY="0dp" />
+        <com.example.dtutextrecognition.AutoFitTextureView
+            android:id="@+id/photoTexture"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:layout_editor_absoluteX="0dp"
+            tools:layout_editor_absoluteY="0dp" />
 
-    <Button
-        android:id="@+id/flash"
+        <Button
+            android:id="@+id/flash"
+            android:layout_width="@dimen/_40sdp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/ic_flash_off"
+            android:stateListAnimator="@null"
+            app:layout_constraintEnd_toStartOf="@id/sign"
+            app:layout_constraintHorizontal_bias="0.493"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-        android:layout_width="@dimen/_40sdp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:background="@drawable/ic_flash_off"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.493"
-        android:stateListAnimator="@null"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        <Button
+            android:id="@+id/sign"
+            android:layout_width="@dimen/_40sdp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/ic_link_off"
+            android:stateListAnimator="@null"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.493"
+            app:layout_constraintStart_toEndOf="@+id/flash"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <EditText
+            android:id="@+id/apiLink"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/_30sdp"
+            android:background="#FFFFFF"
+            android:textColor="#000000"
+            android:hint="APi Link"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+
+        </EditText>
+
+        <Button
+            android:layout_width="wrap_content"
+            android:text="OK"
+            android:id="@+id/ok"
+            android:visibility="gone"
+
+            android:layout_height="wrap_content"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/apiLink" />
 
     <Button
         android:id="@+id/search"
@@ -61,10 +96,7 @@
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <FrameLayout
-        android:id="@+id/fragment_container"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

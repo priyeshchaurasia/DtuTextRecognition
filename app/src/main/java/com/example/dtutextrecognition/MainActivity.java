@@ -4,14 +4,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentTransaction;
-
 import android.Manifest;
-import android.annotation.TargetApi;
-import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -29,7 +23,6 @@ import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
-import android.hardware.camera2.CaptureFailure;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
@@ -37,12 +30,13 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.net.Uri;
-import android.nfc.Tag;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.provider.MediaStore;
+import android.text.SpannableStringBuilder;
+import android.text.style.RelativeSizeSpan;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -55,7 +49,6 @@ import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
@@ -64,41 +57,26 @@ import com.google.firebase.ml.vision.FirebaseVision;
 import com.google.firebase.ml.vision.common.FirebaseVisionImage;
 import com.google.firebase.ml.vision.text.FirebaseVisionText;
 import com.google.firebase.ml.vision.text.FirebaseVisionTextRecognizer;
-import com.google.gson.JsonObject;
 import com.squareup.okhttp.MediaType;
-import com.squareup.okhttp.MultipartBuilder;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.RequestBody;
 import com.squareup.okhttp.Response;
 import com.yalantis.ucrop.UCrop;
-import com.yalantis.ucrop.UCropActivity;
-import com.yalantis.ucrop.util.FileUtils;
-
-import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
-import org.json.JSONStringer;
-import org.w3c.dom.Text;
-
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-
 import okhttp3.MultipartBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Retrofit;
-
 
 public class MainActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener {
     private AutoFitTextureView mTextureView;
@@ -121,12 +99,10 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private Image mImage;
     HandlerThread handlerThread;
     private Handler backgroundHandler = new Handler();
-
     private CaptureRequest.Builder mPreviewRequestBuilder;
-    private StringBuilder mTextFromImage;
     private ProgressBar mContentFindingProgressBar;
     private static final int CAMERA_PERMISSION_CODE = 1;
-    private FrameLayout fragmentContainer;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -145,7 +121,6 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
         mSign.setOnClickListener(this);
         mFlashButton.setOnClickListener(this);
         mContentFindingProgressBar = findViewById(R.id.content_find_progress);
-
     }
     private void openCropActivity(Uri sourceUri, Uri destinationUri) {
         UCrop.Options options = new UCrop.Options();
@@ -166,20 +141,26 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             FileOutputStream fos = null;
             File dir  = File.createTempFile("image", ".jpg");
             File dir2  = File.createTempFile("image2", ".jpg");
-
             String apiCheck = editText.getText().toString();
-
-
-
                 try {
-                    fos = new FileOutputStream(dir);
-                    rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos);
-                    fos.flush();
                     if(isWebOn){
-                        fetchSignData(dir);
+                        if(apiCheck.length()==0){
+                            mContentFindingProgressBar.setVisibility(View.GONE);
+                            Toast.makeText(this,"Api Address Cannot be Empty",Toast.LENGTH_SHORT).show();
+                        }
+                        else{
+                            fos = new FileOutputStream(dir);
+                            rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 5, fos);
+                            fos.flush();
+                            fetchSignData(dir);}
                     }
+
                     else {
-                    Toast.makeText(this,"Image Captured Succesfully",Toast.LENGTH_SHORT).show();
+                        fos = new FileOutputStream(dir);
+                        rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos);
+                        fos.flush();
+
+                        Toast.makeText(this,"Image Captured Succesfully",Toast.LENGTH_SHORT).show();
                     openCropActivity(Uri.fromFile(dir), Uri.fromFile(dir2));}
 
                 } catch (Exception e) {
@@ -429,8 +410,8 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                 rotatedWidth, rotatedHeight,maxPreviewWidth,
                 maxPreviewHeight);
         return;
-
     }
+
 
     private void cameraPreview() throws CameraAccessException {
         SurfaceTexture surfaceTexture = mTextureView.getSurfaceTexture();
@@ -690,11 +671,8 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                             }
                         });
 
-//
-//
-//                        openFragment(Jarray);
+
                     }
-                    // mTextView.setText(Jarray);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -718,8 +696,14 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
+
+                                    mContentFindingProgressBar.setVisibility(View.GONE);
                                     try {
-                                        Toast.makeText(MainActivity.this, ((ApiResponse) response.body()).getResult(), Toast.LENGTH_SHORT).show();
+                                        String str = ((ApiResponse) response.body()).getResult();
+                                        SpannableStringBuilder biggerText = new SpannableStringBuilder(str);
+                                        biggerText.setSpan(new RelativeSizeSpan(2f), 0, str.length(), 0);
+
+                                        Toast.makeText(MainActivity.this,biggerText , Toast.LENGTH_LONG).show();
                                     } catch (Exception e) {
                                         e.printStackTrace();
                                     }
@@ -732,13 +716,17 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                         @Override
                         public void onFailure(Call call, Throwable t) {
                             Log.d("TAGG",t.toString());
-                            Toast.makeText(MainActivity.this, "Failed", Toast.LENGTH_SHORT).show();
+
+                            mContentFindingProgressBar.setVisibility(View.GONE);
+                            Toast.makeText(MainActivity.this, "Api Call Failed", Toast.LENGTH_SHORT).show();
 
                         }
                     });
 
 
                 } catch (Exception e) {
+
+                    mContentFindingProgressBar.setVisibility(View.GONE);
                     Toast.makeText(MainActivity.this, "Failed", Toast.LENGTH_SHORT).show();
                 }
             }}).start();

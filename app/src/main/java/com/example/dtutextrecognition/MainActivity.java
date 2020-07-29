@@ -141,27 +141,26 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
             FileOutputStream fos = null;
             File dir  = File.createTempFile("image", ".jpg");
             File dir2  = File.createTempFile("image2", ".jpg");
+
             String apiCheck = editText.getText().toString();
                 try {
+                    fos = new FileOutputStream(dir);
+                    rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos);
+                    fos.flush();
+
                     if(isWebOn){
+
                         if(apiCheck.length()==0){
                             mContentFindingProgressBar.setVisibility(View.GONE);
                             Toast.makeText(this,"Api Address Cannot be Empty",Toast.LENGTH_SHORT).show();
                         }
                         else{
-                            fos = new FileOutputStream(dir);
-                            rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos);
-                            fos.flush();
-                            fetchSignData(dir);}
+                             fetchSignData(dir);}
                     }
 
                     else {
-                        fos = new FileOutputStream(dir);
-                        rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos);
-                        fos.flush();
-
                         Toast.makeText(this,"Image Captured Succesfully",Toast.LENGTH_SHORT).show();
-                    openCropActivity(Uri.fromFile(dir), Uri.fromFile(dir2));}
+                       openCropActivity(Uri.fromFile(dir), Uri.fromFile(dir2));}
 
                 } catch (Exception e) {
                 }

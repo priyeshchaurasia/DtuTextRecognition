@@ -41,13 +41,15 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <EditText
+            android:layout_margin="@dimen/_10sdp"
             android:id="@+id/apiLink"
             android:layout_width="match_parent"
             android:layout_height="@dimen/_30sdp"
             android:background="#FFFFFF"
             android:textColor="#000000"
-            android:hint="APi Link"
+
             android:visibility="gone"
+            android:hint="APi Link"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
@@ -59,7 +61,7 @@
             android:text="OK"
             android:id="@+id/ok"
             android:visibility="gone"
-
+            android:layout_marginRight="@dimen/_10sdp"
             android:layout_height="wrap_content"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/apiLink" />

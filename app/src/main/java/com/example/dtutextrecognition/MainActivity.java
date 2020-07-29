@@ -150,7 +150,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
                         }
                         else{
                             fos = new FileOutputStream(dir);
-                            rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 5, fos);
+                            rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos);
                             fos.flush();
                             fetchSignData(dir);}
                     }

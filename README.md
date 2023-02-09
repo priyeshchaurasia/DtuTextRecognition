@@ -11,3 +11,9 @@ At present stage we are able to predict the Alphabets and working towards Word R
 
 COMPATIBILITY: This app is compatible with almost every android devices with android version 7 or above.
 This app is build with Camera 2 api 
+
+
+
+
+
+
